@@ -1,0 +1,312 @@
+
+
+*****************************************************************************************
+from bottle import route, request, run,template,debug,error,post,get 
+import sqlite3
+
+
+@route('/')
+def display_homepage():
+        return template('LinkedUHome')
+
+
+
+
+@route('/new',method='get')
+def new_student():
+
+        return template('new_student.tpl')
+
+
+
+@route('/new', method='post')
+
+def register_student():
+        username=request.forms.get('username')
+        password=request.forms.get('password')
+        gpa=request.forms.get('gpa')
+        act=request.forms.get('act')
+        major=request.forms.get('major')
+        print "welcome %s! You are now registered" %username
+
+        conn = sqlite3.connect('studentDB.db')
+        print "successfully opened database"
+        c1=conn.cursor()
+        c1.execute("INSERT INTO STUDENTS (ID, NAME, PASSWORD, GPA, ACT, MAJOR) VALUES(15, ?, ?, ?, ?, ?)",
+	(username, password, gpa, act, major))
+        conn.commit()
+        print "successfully inserted new record"
+        c1.close()
+
+        c2=conn.cursor()
+        c2.execute("SELECT * FROM STUDENTS WHERE NAME LIKE ?",(username,))
+
+        result =c2.fetchall()
+        print result[0]
+        c2.close()
+        conn.close()
+        output=template('profile', row=result[0])
+        return output
+
+
+
+@route('/login')# default is get
+def login():
+       return template('login')
+
+
+
+@route('/login' ,method="post")# default is get
+def do_login():
+       username = request.POST.get('username')
+       password=request.POST.get('password')
+       conn = sqlite3.connect('studentDB.db')
+       c2=conn.cursor()
+       print '%s' %username
+       c2.execute("SELECT * FROM STUDENTS WHERE NAME LIKE ? and PASSWORD LIKE ?",(username,password))
+
+       result =c2.fetchall()
+
+       c2.close()
+       conn.close()
+       if not result:
+               return"Login information is incorrect."
+
+
+       else:
+               output=template('profile', row=result[0])
+               return output
+
+
+
+@route('/logout')
+def logout():
+        return template('logout')
+
+
+
+
+@route('/edit/:no', method ='get')
+def display_profile_to_update(no):
+               conn = sqlite3.connect('studentDB.db')
+               c=conn.cursor()
+               print '%s is requested' %no
+               c.execute("select name, password, gpa, act, major from students where id =?",(no,))
+
+               cur_data =c.fetchall()
+               print cur_data[0]
+               c.close()
+               conn.close()
+
+               return template('edit_student', old = cur_data[0], no = no)
+
+
+@route('/edit/:no', method ='post')
+
+def edit_student(no):
+
+       if request.POST.get('save','').strip():
+               password=request.POST.get('password','').strip()
+               gpa=request.POST.get('gpa','').strip()
+               act=request.POST.get('act','').strip()
+               major=request.POST.get('major','').strip()
+
+               conn = sqlite3.connect('studentDB.db')
+               c=conn.cursor()
+               c.execute("UPDATE STUDENTS SET PASSWORD = ?,GPA = ?,ACT = ?,MAJOR = ? WHERE ID =? ",(password, gpa,act,major,no))
+               conn.commit()
+               c.close()
+               cur=conn.cursor()
+               #cur.execute("select * from students")
+               cur.execute("select * from students where id = ?", (no,))
+
+               updated_result =cur.fetchone()
+               #print cur_data updated_result[0]
+               cur.close()
+               conn.close()
+
+               if not updated_result:
+                       print 'row not updated'
+
+               else:
+                       print '<p> Your profile was successfully updated, your id  %s</P>'%no
+                       return template('updated_profile', row = updated_result)
+
+
+@error(404)
+def mistake404(code):
+       return 'Sorry, this page does not exist!'
+
+
+
+
+debug(True)
+
+run(host='localhost', port=8888)
+
+
+
+*****************************************************************************************************
+
+*****************************************************************************************************
+create table
+
+
+#!/usr/bin/python
+import sqlite3
+conn = sqlite3.connect('studentDB.db')
+print "successfully opened database"
+
+conn.execute (''' CREATE TABLE STUDENTS (
+ID INT PRIMARY KEY NOT NULL,
+NAME CHAR(25) NOT NULL,
+PASSWORD CHAR(25) NOT NULL,
+GPA REAL,s
+ACT INT,
+MAJOR CHAR(40));''')
+print "Table created successfully";
+
+conn.close()
+
+*********************************************************************************************************
+#!/usr/bin/python
+import sqlite3
+conn = sqlite3.connect('studentDB.db')
+print "successfully opened database"
+
+conn.execute("INSERT INTO STUDENTS (ID, NAME, PASSWORD, GPA, ACT, MAJOR) VALUES (2, 'Allen', 'hello', 2.8, 24, 'undecided')");
+
+
+conn.execute("INSERT INTO STUDENTS (ID, NAME, PASSWORD, GPA, ACT, MAJOR) VALUES (3, 'Teddy', 'password3', 3.5, 30, 'nursing')");
+
+conn.execute("INSERT INTO STUDENTS (ID, NAME, PASSWORD, GPA, ACT, MAJOR) VALUES (4, 'Julie', 'password4', 3.8, 34, 'Physics')");
+
+
+conn.execute("INSERT INTO STUDENTS (ID, NAME, PASSWORD, GPA, ACT, MAJOR) VALUES (5, 'Mark', 'password5', 4.0, 35, 'Chemistry')");
+
+conn.commit()
+
+print "records created successfully";
+
+conn.close()
+
+
+
+***********************************************************************************
+
+%#template to generate a HTML table of Linked in student profile info.
+
+<body style="background-color:lightblue;padding-left:100px">
+<h1>LinkedU </h1>
+
+ <p><a href="/login">Login</a></p>
+<p><a href="/new">Sign up</a></p>
+
+
+
+**************************************************************************************
+%#template to generate a HTML table of Linked in student profile info.
+<h1>LinkedU Profile Page</h1>
+
+
+<body style="background-color:lightblue;padding-left:100px">
+<form action ="/logout" method ="post">
+
+<p>Welcome, {{row[1]}}!  </P>
+
+         ID: {{ row[0]}} </br>
+         NAME: {{ row[1]}}<br/>
+         PASSWORD: {{row[2]}}<br/>
+         GPA: {{ row[3]}}<br/>
+         ACT: {{ row[4]}}<br/>
+         MAJOR: {{ row[5]}}<br/>
+
+                  <p><a href="/edit/{{row[0]}}">Edit profile</a></p>
+                  <p><a href="/logout}">Logout</a></p>
+
+
+***************************************************************************************
+%#template to generate a HTML table of updated LinkedU student info.
+
+<body style="background-color: lightblue; padding-left:100px">
+<p> {{row[1]}}, You have successfully updated your information </P>
+
+         ID={{ row[0]}} </br>
+         NAME ={{ row[1]}}<br/>
+         PASSWORD ={{row[2]}}<br/>
+         GPA={{ row[3]}}<br/>
+         ACT ={{ row[4]}}<br/>
+         MAJOR ={{ row[5]}}<br/>
+         <p><a href="/logout">Logout</a></p>
+
+
+
+</body>
+
+
+*************************************************************************************
+%#template for new student
+
+<body style="padding-left:100px">
+
+                <form action ="/new" method ="post">
+
+                        <h1>LinkedU Sign-Up</h1>
+                        Username: <input name="username" type="text"/><br/>
+                        Password: <input name="password" type="password" /><br/>
+                        GPA: <input name="gpa" type="real" /><br/>
+                        ACT: <input name="act" type="int" /><br/>
+                        Major: <input name="major" type="text" /><br/>
+                        <input value ="Login" type ="submit" /><br/>
+                </form>
+                </body>
+
+*************************************************************************************
+%#template for student login
+
+<h1>LinkedU Login</h1>
+
+
+<body style="background-color:lightblue;padding-left:100px">
+
+
+<form action ="/login" method="post">
+                Username: <input name="username" type="text"/><br/>
+                Password:<input name="password" type="password"/><br/>
+                <input value="login" type="submit"/>
+                </form>
+
+************************************************************************************
+
+
+%#template to generate a HTML table of Linked in student profile info.
+<h1>LinkedU Profile Page</h1>
+
+
+<body style="background-color:lightblue;padding-left:100px">
+<p>Welcome, {{row[1]}}!  </P>
+
+         ID={{ row[0]}} </br>
+         NAME ={{ row[1]}}<br/>
+         PASSWORD ={{row[2]}}<br/>
+         GPA={{ row[3]}}<br/>
+         ACT ={{ row[4]}}<br/>
+         MAJOR ={{ row[5]}}<br/>
+********************************************************************************
+%#template for editing a student
+%#the template expects to receive a value for "no" as well as a "old"
+<h1>LinkedU Login</h1>
+
+
+<body style="background-color:lightblue;padding-left:100px">
+
+
+<form action ="/login" method="post">
+               Username: <input name="username" type="text"/><br/>
+               Password:<input name="password" type="password"/><br/>
+               <input value="login" type="submit"/>
+               </form>
+
+
+
+
